@@ -7,9 +7,7 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ["puppeteer", "puppeteer-core", "@prisma/client"],
-  },
+  serverExternalPackages: ["puppeteer", "puppeteer-core", "@prisma/client"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },

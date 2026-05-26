@@ -1,5 +1,4 @@
-import { createBrowserClient, createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createBrowserClient } from "@supabase/ssr";
 
 // Browser client (for use in client components)
 export function createClient() {
@@ -9,31 +8,9 @@ export function createClient() {
   );
 }
 
-// Server client (for use in server components, API routes, middleware)
-export async function createServerSupabaseClient() {
-  const cookieStore = await cookies();
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Server component — can ignore
-          }
-        },
-      },
-    }
-  );
-}
+// Server client — import this only in server components/API routes
+// Use: import { createServerSupabaseClient } from "@/lib/supabase-server"
+export { createServerSupabaseClient } from "@/lib/supabase-server";
 
 // Admin client with service role (for server-side privileged operations)
 export function createAdminClient() {
