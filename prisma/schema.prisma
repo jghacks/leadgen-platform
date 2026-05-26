@@ -1,0 +1,604 @@
+// This is your Prisma schema file
+// Learn more at: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// USERS & AUTH
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  avatarUrl     String?
+  role          UserRole @default(USER)
+  plan          Plan     @default(FREE)
+  apiUsage      Int      @default(0)
+  apiLimit      Int      @default(100)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  leads         Lead[]
+  campaigns     Campaign[]
+  crmNotes      CrmNote[]
+  outreaches    Outreach[]
+  websites      GeneratedWebsite[]
+  aiGenerations AiGeneration[]
+  scrapeJobs    ScrapeJob[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  AGENCY
+  ENTERPRISE
+}
+
+// ─────────────────────────────────────────────────────────────
+// LEADS
+// ─────────────────────────────────────────────────────────────
+
+model Lead {
+  id                  String          @id @default(cuid())
+  userId              String
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Business Info
+  businessName        String
+  ownerName           String?
+  phone               String?
+  email               String?
+  website             String?
+  address             String?
+  city                String?
+  state               String?
+  zipCode             String?
+  country             String          @default("US")
+  latitude            Float?
+  longitude           Float?
+
+  // Business Classification
+  niche               String
+  category            String?
+  subcategory         String?
+  description         String?
+
+  // Ratings & Reviews
+  googleRating        Float?
+  reviewCount         Int?
+  yelpRating          Float?
+  facebookRating      Float?
+
+  // Social Media
+  facebookUrl         String?
+  instagramUrl        String?
+  linkedinUrl         String?
+  twitterUrl          String?
+  youtubeUrl          String?
+  tiktokUrl           String?
+
+  // Data Sources
+  source              LeadSource      @default(GOOGLE_MAPS)
+  googlePlaceId       String?
+  yelpBusinessId      String?
+
+  // Website Analysis
+  websiteAge          Int?            // in years
+  lastUpdated         DateTime?
+  techStack           Json?           // array of detected technologies
+  hasSSL              Boolean?
+  isMobileOptimized   Boolean?
+  hasOnlineBooking    Boolean?
+  hasChatbot          Boolean?
+  hasLiveChat         Boolean?
+  hasAI               Boolean?
+  hasEcommerce        Boolean?
+  hasAnalytics        Boolean?
+  hasCRM              Boolean?
+  hasEmailMarketing   Boolean?
+  hasAdPixel          Boolean?
+  frameworkDetected   String?
+  cmsDetected         String?
+
+  // SEO & Performance
+  seoScore            Int?            // 0-100
+  performanceScore    Int?            // 0-100
+  accessibilityScore  Int?            // 0-100
+  designScore         Int?            // 0-100
+  pageSpeedDesktop    Int?
+  pageSpeedMobile     Int?
+  estimatedTraffic    Int?            // monthly visitors
+  domainAuthority     Int?
+  backlinks           Int?
+
+  // Business Intelligence
+  estimatedRevenue    String?         // range: "$50k-$200k"
+  employeeCount       String?         // range: "1-10"
+  businessAge         Int?            // years in business
+  runsAds             Boolean?
+  adPlatforms         Json?           // ["google", "facebook", etc]
+
+  // Reachability Score
+  reachabilityScore   Int?            // 0-100
+  reachabilityTier    ReachabilityTier?
+  reachabilityFactors Json?           // breakdown of factors
+
+  // Lead Management
+  status              LeadStatus      @default(NEW)
+  priority            Priority        @default(MEDIUM)
+  dealValue           Float?
+  pipelineStage       PipelineStage?  @relation(fields: [pipelineStageId], references: [id])
+  pipelineStageId     String?
+  tags                String[]        @default([])
+  isStarred           Boolean         @default(false)
+  isArchived          Boolean         @default(false)
+  assignedTo          String?
+
+  // Timestamps
+  lastContactedAt     DateTime?
+  followUpAt          DateTime?
+  closedAt            DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  // Relations
+  audit               Audit?
+  outreaches          Outreach[]
+  crmNotes            CrmNote[]
+  generatedWebsite    GeneratedWebsite?
+  aiGenerations       AiGeneration[]
+
+  @@index([userId])
+  @@index([niche])
+  @@index([city, state])
+  @@index([reachabilityTier])
+  @@index([status])
+  @@index([isStarred])
+  @@map("leads")
+}
+
+enum LeadSource {
+  GOOGLE_MAPS
+  YELP
+  BBB
+  FACEBOOK
+  LINKEDIN
+  CHAMBER_OF_COMMERCE
+  MANUAL
+  IMPORT
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  PROPOSAL_SENT
+  NEGOTIATING
+  WON
+  LOST
+  NOT_INTERESTED
+  DO_NOT_CONTACT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ReachabilityTier {
+  HOT_LEAD
+  VERY_LIKELY
+  MEDIUM
+  LOW_PRIORITY
+}
+
+// ─────────────────────────────────────────────────────────────
+// SCRAPE JOBS
+// ─────────────────────────────────────────────────────────────
+
+model ScrapeJob {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  niche           String
+  location        String
+  city            String?
+  state           String?
+  radius          Int           @default(25)  // miles
+  minReviews      Int           @default(0)
+  requireWebsite  Boolean       @default(false)
+  requireEmail    Boolean       @default(false)
+  filters         Json?
+
+  status          JobStatus     @default(PENDING)
+  progress        Int           @default(0)   // 0-100
+  totalFound      Int           @default(0)
+  processed       Int           @default(0)
+  errors          Int           @default(0)
+  errorLog        Json?
+
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("scrape_jobs")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUDITS
+// ─────────────────────────────────────────────────────────────
+
+model Audit {
+  id                    String   @id @default(cuid())
+  leadId                String   @unique
+  lead                  Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  // Lighthouse Scores
+  performanceScore      Int?
+  seoScore              Int?
+  accessibilityScore    Int?
+  bestPracticesScore    Int?
+
+  // Speed Metrics
+  firstContentfulPaint  Float?   // seconds
+  largestContentfulPaint Float?
+  totalBlockingTime     Float?   // ms
+  cumulativeLayoutShift Float?
+  speedIndex            Float?
+  timeToInteractive     Float?
+
+  // SEO Analysis
+  hasMetaTitle          Boolean?
+  hasMetaDescription    Boolean?
+  hasH1                 Boolean?
+  hasSchema             Boolean?
+  hasOpenGraph          Boolean?
+  hasSitemap            Boolean?
+  hasRobots             Boolean?
+  canonicalTagPresent   Boolean?
+  keywordsAnalysis      Json?
+
+  // Technical
+  brokenLinks           Int?
+  redirectChains        Int?
+  missingAltTags        Int?
+  renderBlocking        Int?
+  unusedCSS             Float?   // KB
+  unusedJS              Float?   // KB
+  imageOptimization     Float?   // % optimized
+  hasHTTPS              Boolean?
+  hasMixedContent       Boolean?
+  isResponsive          Boolean?
+
+  // Opportunities
+  aiSummary             String?  @db.Text
+  criticalIssues        Json?    // array of issues
+  improvements          Json?    // array of improvements
+  opportunities         Json?    // array of opportunities
+  estimatedRevenueImpact String?
+  competitorComparison  Json?
+
+  // Raw data
+  rawLighthouseData     Json?
+  screenshotUrl         String?
+  mobileScreenshotUrl   String?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([leadId])
+  @@map("audits")
+}
+
+// ─────────────────────────────────────────────────────────────
+// OUTREACH
+// ─────────────────────────────────────────────────────────────
+
+model Outreach {
+  id              String         @id @default(cuid())
+  leadId          String
+  lead            Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type            OutreachType
+  channel         OutreachChannel
+  subject         String?
+  content         String         @db.Text
+  status          OutreachStatus @default(DRAFT)
+
+  // AI Generation metadata
+  aiModel         String?
+  promptUsed      String?        @db.Text
+  generatedAt     DateTime?
+
+  // Tracking
+  sentAt          DateTime?
+  openedAt        DateTime?
+  repliedAt       DateTime?
+  bouncedAt       DateTime?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([leadId])
+  @@index([userId])
+  @@index([type])
+  @@map("outreach")
+}
+
+enum OutreachType {
+  COLD_EMAIL
+  FOLLOW_UP_EMAIL
+  COLD_CALL_SCRIPT
+  VOICEMAIL_SCRIPT
+  SMS
+  LINKEDIN_MESSAGE
+  PROPOSAL
+}
+
+enum OutreachChannel {
+  EMAIL
+  PHONE
+  SMS
+  LINKEDIN
+  IN_PERSON
+}
+
+enum OutreachStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  OPENED
+  REPLIED
+  BOUNCED
+  FAILED
+}
+
+// ─────────────────────────────────────────────────────────────
+// GENERATED WEBSITES
+// ─────────────────────────────────────────────────────────────
+
+model GeneratedWebsite {
+  id              String          @id @default(cuid())
+  leadId          String          @unique
+  lead            Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Design
+  template        String?
+  colorScheme     Json?
+  typography      Json?
+  style           WebsiteStyle    @default(MODERN)
+
+  // Pages
+  homepageHtml    String?         @db.Text
+  servicesHtml    String?         @db.Text
+  aboutHtml       String?         @db.Text
+  contactHtml     String?         @db.Text
+  landingPages    Json?           // array of additional landing pages
+
+  // Content
+  businessName    String
+  tagline         String?
+  description     String?         @db.Text
+  services        Json?
+  testimonials    Json?
+  ctaText         String?
+
+  // SEO
+  seoTitle        String?
+  seoDescription  String?
+  keywords        String[]        @default([])
+
+  // Export
+  exportedAt      DateTime?
+  deployedUrl     String?
+  vercelProjectId String?
+  status          WebsiteStatus   @default(GENERATING)
+
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([leadId])
+  @@map("websites")
+}
+
+enum WebsiteStyle {
+  MODERN
+  CORPORATE
+  LUXURY
+  MINIMAL
+  BOLD
+  PLAYFUL
+  DARK
+  LIGHT
+}
+
+enum WebsiteStatus {
+  GENERATING
+  READY
+  EXPORTED
+  DEPLOYED
+  ARCHIVED
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI GENERATIONS
+// ─────────────────────────────────────────────────────────────
+
+model AiGeneration {
+  id           String           @id @default(cuid())
+  leadId       String?
+  lead         Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type         GenerationType
+  model        String
+  prompt       String           @db.Text
+  output       String           @db.Text
+  tokensUsed   Int?
+  cost         Float?
+
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([type])
+  @@map("ai_generations")
+}
+
+enum GenerationType {
+  WEBSITE_HTML
+  COLD_EMAIL
+  FOLLOW_UP_EMAIL
+  CALL_SCRIPT
+  VOICEMAIL_SCRIPT
+  AUDIT_SUMMARY
+  REACHABILITY_SCORE
+  COMPETITOR_ANALYSIS
+  PROPOSAL
+  SMS
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRM
+// ─────────────────────────────────────────────────────────────
+
+model PipelineStage {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  icon        String?
+  order       Int
+  isDefault   Boolean  @default(false)
+  isDealStage Boolean  @default(false)
+
+  leads       Lead[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("pipeline_stages")
+}
+
+model CrmNote {
+  id          String    @id @default(cuid())
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        NoteType  @default(NOTE)
+  content     String    @db.Text
+  isPrivate   Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([leadId])
+  @@index([userId])
+  @@map("crm_notes")
+}
+
+enum NoteType {
+  NOTE
+  CALL_LOG
+  EMAIL_LOG
+  MEETING
+  TASK
+  REMINDER
+}
+
+// ─────────────────────────────────────────────────────────────
+// CAMPAIGNS
+// ─────────────────────────────────────────────────────────────
+
+model Campaign {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  description  String?
+  type         CampaignType
+  status       CampaignStatus @default(DRAFT)
+
+  // Targeting
+  targetNiche  String?
+  targetCity   String?
+  targetState  String?
+  targetTier   ReachabilityTier?
+  leadIds      String[]       @default([])
+
+  // Email sequence
+  sequence     Json?          // array of email steps with delays
+
+  // Stats
+  totalLeads   Int            @default(0)
+  sent         Int            @default(0)
+  opened       Int            @default(0)
+  replied      Int            @default(0)
+  converted    Int            @default(0)
+
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId])
+  @@map("campaigns")
+}
+
+enum CampaignType {
+  EMAIL_SEQUENCE
+  COLD_CALL
+  MULTI_CHANNEL
+  SMS
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}

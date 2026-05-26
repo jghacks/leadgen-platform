@@ -1,0 +1,26 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true"
+  },
+  "functions": {
+    "src/app/api/scrape/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/generate/website/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate/email/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/generate/script/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/audit/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
